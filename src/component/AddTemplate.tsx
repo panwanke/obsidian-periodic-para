@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useApp } from 'src/hooks/useApp';
 import { Notice } from 'obsidian';
 import {
@@ -9,12 +9,13 @@ import {
   Radio,
   Tabs,
   Input,
+  AutoComplete,
   ConfigProvider,
   theme,
 } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import reduceCSSCalc from 'reduce-css-calc';
-import dayjs, { Dayjs } from 'dayjs';
+import dayjs from 'dayjs';
 import {
   PARA,
   PROJECT,
@@ -29,7 +30,7 @@ import {
   YEARLY,
   ERROR_MESSAGES,
 } from '../constant';
-import { createFile, isDarkTheme } from '../util';
+import { createFile, createPeriodicFile, isDarkTheme } from '../util';
 import type { PluginSettings } from '../type';
 
 import enUS from 'antd/locale/en_US';
@@ -50,6 +51,7 @@ export const AddTemplate = () => {
   const [periodicActiveTab, setPeriodicActiveTab] = useState(DAILY);
   const [paraActiveTab, setParaActiveTab] = useState(PROJECT);
   const defaultType = settings?.usePeriodicNotes ? PERIODIC : PARA;
+  const [isDark, setDark] = useState(isDarkTheme());
   const [type, setType] = useState(defaultType);
   const [form] = Form.useForm();
   const today = dayjs(new Date());
@@ -138,6 +140,7 @@ export const AddTemplate = () => {
     folder = `${path}/${key}`;
     file = `${folder}/${README}`;
 
+    // 自定义修改，根据识别的 PARA类型更改 template
     const PARA_type = paraActiveTab.toLocaleLowerCase()
     if (PARA_type == "project")
       templateFile = `${settings.periodicTemplatePath}/ProjectTemplate.md`;
@@ -148,7 +151,7 @@ export const AddTemplate = () => {
     else if (PARA_type == "resource")
       templateFile = `${settings.periodicTemplatePath}/ResourceTemplate.md`;
     // console.log('path', PARA_type, templateFile)
-
+    // 另一种写法
     // const templateMap = {
     //   'project': 'ProjectTemplate.md',
     //   'area': 'AreaTemplate.md',
@@ -182,6 +185,39 @@ export const AddTemplate = () => {
     });
   };
 
+  useEffect(() => {
+    const handleBodyClassChange = () => {
+      setDark(isDarkTheme());
+    };
+
+    const observer = new MutationObserver(handleBodyClassChange);
+    observer.observe(document.body, {
+      attributes: true,
+      attributeFilter: ['class'],
+    });
+
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+
+  // tags autocomplete
+  const tags = Object.entries(
+    (app?.metadataCache as any).getTags() as Record<string, number>
+  )
+    .sort((a, b) => b[1] - a[1])
+    .map(([tag, _]) => {
+      return { value: tag };
+    });
+  const [tagsOptions, setTagOptions] = useState<{ value: string }[]>(tags);
+  const handleTagsSearch = (value: string) => {
+    const filteredOptions = tags.filter((tag) =>
+      tag.value.toLowerCase().includes(value.toLowerCase())
+    );
+
+    setTagOptions(filteredOptions);
+  };
+
   return (
     <ConfigProvider
       locale={localeMap[locale]}
@@ -199,7 +235,7 @@ export const AddTemplate = () => {
             cellHeight: 30,
           },
         },
-        algorithm: isDarkTheme() ? theme.darkAlgorithm : theme.defaultAlgorithm,
+        algorithm: isDark ? theme.darkAlgorithm : theme.defaultAlgorithm,
       }}
     >
       <Form
@@ -262,7 +298,14 @@ export const AddTemplate = () => {
                   children: (
                     <Form.Item name={periodic}>
                       <DatePicker
-                        onSelect={createPeriodicFile}
+                        onSelect={(day) => {
+                          createPeriodicFile(
+                            day,
+                            periodicActiveTab,
+                            settings.periodicNotesPath,
+                            app
+                          );
+                        }}
                         picker={picker}
                         showToday={false}
                         style={{ width: 200 }}
@@ -311,30 +354,35 @@ export const AddTemplate = () => {
                             },
                           ]}
                         >
-                          <Input
-                            onChange={() => {
-                              const itemTag = form
-                                .getFieldValue(`${item}Tag`)
-                                .replace(/^#/, '');
-                              const itemFolder = itemTag.replace(/\//g, '-');
-                              const itemREADME = itemTag
-                                .split('/')
-                                .reverse()[0];
+                          <AutoComplete
+                            options={tagsOptions}
+                            onSearch={handleTagsSearch}
+                          >
+                            <Input
+                              onChange={() => {
+                                const itemTag = form
+                                  .getFieldValue(`${item}Tag`)
+                                  .replace(/^#/, '');
+                                const itemFolder = itemTag.replace(/\//g, '-');
+                                const itemREADME = itemTag
+                                  .split('/')
+                                  .reverse()[0];
 
-                              form.setFieldValue(`${item}Folder`, itemFolder);
-                              form.setFieldValue(
-                                `${item}README`,
-                                itemREADME ? itemREADME + '.README.md' : ''
-                              );
-                              form.validateFields([
-                                `${item}Folder`,
-                                `${item}README`,
-                              ]);
-                            }}
-                            allowClear
-                            placeholder={`${item} Tag, eg: ${item === PROJECT ? 'PKM/LifeOS' : 'PKM' // 引导用户，项目一般属于某个领域
-                              }`}
-                          />
+                                form.setFieldValue(`${item}Folder`, itemFolder);
+                                form.setFieldValue(
+                                  `${item}README`,
+                                  itemREADME ? itemREADME + '.README.md' : ''
+                                );
+                                form.validateFields([
+                                  `${item}Folder`,
+                                  `${item}README`,
+                                ]);
+                              }}
+                              allowClear
+                              placeholder={`${item} Tag, eg: ${item === PROJECT ? 'PKM/LifeOS' : 'PKM' // 引导用户，项目一般属于某个领域
+                                }`}
+                            />
+                          </AutoComplete>
                         </Form.Item>
                         <Form.Item
                           labelCol={{ flex: '80px' }}
