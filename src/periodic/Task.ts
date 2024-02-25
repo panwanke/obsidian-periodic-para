@@ -121,6 +121,11 @@ export class Task {
       );
     }
 
+    const from = tags
+      .map((tag: string[], index: number) => {
+        return `#${tag} ${index === tags.length - 1 ? '' : 'OR'}`;
+      })
+      .join(' ');
     const where = tags
       .map((tag: string[], index: number) => {
         return `contains(tags, "#${tag}") ${index === tags.length - 1 ? '' : 'OR'
@@ -130,7 +135,7 @@ export class Task {
 
     const { values: tasks } = (await this.dataview.tryQuery(`
 TASK
-FROM -"${this.settings.periodicTemplatePath}"
+FROM (${from}) AND -"${this.settings.periodicTemplatePath}"
 WHERE ${where} AND file.path != "${filepath}"
 SORT status ASC
     `)) as TaskResult;
