@@ -171,27 +171,28 @@ export async function createPeriodicFile(
   const year = date.format('YYYY');
   let value;
 
+  const monthNumber = String(date.month() + 1).padStart(2, '0');
+
   if (periodType === DAILY) {
-    folder = `${periodicNotesPath}/${year}/${periodType}/${String(
-      date.month() + 1
-    ).padStart(2, '0')}`;
+    folder = `${periodicNotesPath
+      }/${year}/${monthNumber}`;
     value = date.format('YYYY-MM-DD');
   } else if (periodType === WEEKLY) {
-    folder = `${periodicNotesPath}/${date.format('gggg')}/${periodType}`;
+    folder = `${periodicNotesPath}/${year}/${monthNumber}`;
     value = date.format('gggg-[W]ww');
   } else if (periodType === MONTHLY) {
-    folder = `${periodicNotesPath}/${year}/${periodType}`;
+    folder = `${periodicNotesPath}/${year}`;
     value = date.format('YYYY-MM');
   } else if (periodType === QUARTERLY) {
-    folder = `${periodicNotesPath}/${year}/${periodType}`;
+    folder = `${periodicNotesPath}/${year}`;
     value = date.format('YYYY-[Q]Q');
   } else if (periodType === YEARLY) {
-    folder = `${periodicNotesPath}/${year}`;
+    folder = `${periodicNotesPath}`;
     value = year;
   }
 
   file = `${folder}/${value}.md`;
-  templateFile = `${periodicNotesPath}/Templates/${periodType}.md`;
+  templateFile = `${periodicNotesPath}/${periodType}.md`;
 
   await createFile(app, {
     templateFile,
