@@ -1,8 +1,18 @@
-import { App, TFile, TFolder } from 'obsidian';
+import { App, MarkdownPostProcessorContext, TFile, TFolder } from 'obsidian';
 import type { PluginSettings } from '../type';
-import { ERROR_MESSAGES } from '../constant';
+
+import {
+  DAILY_REG,
+  WEEKLY_REG,
+  MONTHLY_REG,
+  QUARTERLY_REG,
+  YEARLY_REG,
+  ERROR_MESSAGES,
+} from '../constant';
 import { DataviewApi } from 'obsidian-dataview';
-import { logMessage } from 'src/util';
+import { logMessage, renderError } from '../util';
+import { Markdown } from '../component/Markdown';
+import dayjs from 'dayjs';
 
 export class File {
   app: App;
@@ -33,18 +43,23 @@ export class File {
       const subFolderList = folder.children
         .sort()
         .filter((file) => file instanceof TFolder);
-      const READMEList = subFolderList
+      const IndexList = subFolderList
         .map((subFolder) => {
-          // 搜索 README，不存在的话，搜索第一个形如 XXX.README 的
+          // 优先搜索同名文件，否则搜索 XXX.README
           if (subFolder instanceof TFolder) {
+            const { name } = subFolder;
             const files = subFolder.children;
-
-            const README = files.find((file) =>
-              file.path.match(/(.*\.)?README\.md/)
-            );
+            const indexFile = files.find((file) => {
+              if ((file as any).basename === name) {
+                return true;
+              }
+              if (file.path.match(/(.*\.)?README\.md/)) {
+                return true;
+              }
+            });
 
             if (condition.tags.length) {
-              const tags = this.tags(README?.path || '');
+              const tags = this.tags(indexFile?.path || '');
               // tags: #work/project-1 #work/project-2
               // condition.tags: #work
               if (!this.hasCommonPrefix(tags, condition.tags)) {
@@ -52,14 +67,19 @@ export class File {
               }
             }
 
-            if (!README) {
-              logMessage(ERROR_MESSAGES.NO_README_EXIST + subFolder.path);
+            if (!indexFile) {
+              logMessage(
+                ERROR_MESSAGES.NO_INDEX_FILE_EXIST +
+                  `${subFolder.name}.md)` +
+                  ' in folder: ' +
+                  subFolder.path
+              );
             }
 
-            if (README instanceof TFile) {
+            if (indexFile instanceof TFile) {
               const link = this.app.metadataCache.fileToLinktext(
-                README,
-                README?.path
+                indexFile,
+                indexFile?.path
               );
               return `[[${link}|${subFolder.name}]]`;
             }
@@ -68,7 +88,7 @@ export class File {
         .filter((link) => !!link)
         .map((link, index: number) => `${index + 1}. ${link}`);
 
-      return READMEList.join('\n');
+      return IndexList.join('\n');
     }
 
     return `No files in ${fileFolder}`;
@@ -101,4 +121,58 @@ export class File {
 
     return tags;
   }
+
+  listByTag = async (
+    source: string,
+    el: HTMLElement,
+    ctx: MarkdownPostProcessorContext
+  ) => {
+    const filepath = ctx.sourcePath;
+    const tags = this.tags(filepath);
+    const div = el.createEl('div');
+    const component = new Markdown(div);
+    const periodicNotesPath = this.settings.periodicNotesPath;
+
+    if (!tags.length) {
+      return renderError(
+        this.app,
+        ERROR_MESSAGES.NO_FRONT_MATTER_TAG,
+        div,
+        filepath
+      );
+    }
+
+    const from = tags
+      .map((tag: string[], index: number) => {
+        return `#${tag} ${index === tags.length - 1 ? '' : 'OR'}`;
+      })
+      .join(' ')
+      .trim();
+
+    this.dataview.table(
+      ['File', 'Date'],
+      this.dataview
+        .pages(from)
+        .filter(
+          (b) =>
+            !b.file.name?.match(YEARLY_REG) &&
+            !b.file.name?.match(QUARTERLY_REG) &&
+            !b.file.name?.match(MONTHLY_REG) &&
+            !b.file.name?.match(WEEKLY_REG) &&
+            !b.file.name?.match(DAILY_REG) &&
+            !b.file.name?.match(/Template$/) &&
+            !b.file.path?.includes(`${periodicNotesPath}/Templates`)
+        )
+        .sort((b) => b.file.ctime, 'desc')
+        .map((b) => [
+          b.file.link,
+          `[[${dayjs(b.file.ctime.ts).format('YYYY-MM-DD')}]]`,
+        ]),
+      div,
+      component,
+      filepath
+    );
+
+    ctx.addChild(component);
+  };
 }

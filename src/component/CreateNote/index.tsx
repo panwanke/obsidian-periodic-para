@@ -1,6 +1,7 @@
+
 import * as React from 'react';
 import { useEffect, useState } from 'react';
-import { useApp } from 'src/hooks/useApp';
+import { useApp } from '../../hooks/useApp';
 import { Notice } from 'obsidian';
 import {
   Form,
@@ -29,25 +30,18 @@ import {
   QUARTERLY,
   YEARLY,
   ERROR_MESSAGES,
-} from '../constant';
-import { createFile, createPeriodicFile, isDarkTheme } from '../util';
-import type { PluginSettings } from '../type';
+  LOCALE_MAP,
+  TAG,
+  FOLDER,
+  INDEX,
+} from '../../constant';
+import { createFile, createPeriodicFile, isDarkTheme } from '../../util';
+import type { PluginSettings } from '../../type';
+import './index.less';
 
-import enUS from 'antd/locale/en_US';
-import zhCN from 'antd/locale/zh_CN';
-import 'dayjs/locale/zh-cn';
-import 'dayjs/locale/zh';
-
-const localeMap: Record<string, any> = {
-  en: enUS,
-  'en-us': enUS,
-  zh: zhCN,
-  'zh-cn': zhCN,
-};
-const locale = window.localStorage.getItem('language') || 'en';
-
-export const AddTemplate = () => {
-  const { app, settings, width } = useApp() || {};
+export const CreateNote = (props: { width: number }) => {
+  const { app, settings, locale } = useApp() || {};
+  const { width } = props;
   const [periodicActiveTab, setPeriodicActiveTab] = useState(DAILY);
   const [paraActiveTab, setParaActiveTab] = useState(PROJECT);
   const defaultType = settings?.usePeriodicNotes ? PERIODIC : PARA;
@@ -55,6 +49,8 @@ export const AddTemplate = () => {
   const [type, setType] = useState(defaultType);
   const [form] = Form.useForm();
   const today = dayjs(new Date());
+  const localeMap =
+    LOCALE_MAP[locale?.locale || 'en-us'] || LOCALE_MAP['en-us'];
   const SubmitButton = (
     <Form.Item
       style={{
@@ -72,49 +68,6 @@ export const AddTemplate = () => {
     </Form.Item>
   );
 
-  const createPeriodicFile = async (d: Dayjs) => {
-    const dates = dayjs(d.format()).locale(locale);
-
-    if (!app || !settings) {
-      return;
-    }
-
-    let templateFile = '';
-    let folder = '';
-    let file = '';
-
-    const year = dates.format('gggg');
-    const monthNumber = String(dates.month() + 1).padStart(2, '0');
-    let value;
-
-    if (periodicActiveTab === DAILY) {
-      folder = `${settings.periodicNotesPath
-        }/${year}/${monthNumber}`;
-      value = dates.format('YYYY-MM-DD');
-    } else if (periodicActiveTab === WEEKLY) {
-      folder = `${settings.periodicNotesPath}/${year}/${monthNumber}`;
-      value = dates.format('gggg-[W]ww');
-    } else if (periodicActiveTab === MONTHLY) {
-      folder = `${settings.periodicNotesPath}/${year}`;
-      value = dates.format('YYYY-MM');
-    } else if (periodicActiveTab === QUARTERLY) {
-      folder = `${settings.periodicNotesPath}/${year}`;
-      value = dates.format('YYYY-[Q]Q');
-    } else if (periodicActiveTab === YEARLY) {
-      folder = `${settings.periodicNotesPath}`;
-      value = year;
-    }
-
-    file = `${folder}/${value}.md`;
-    templateFile = `${settings.periodicTemplatePath}/${periodicActiveTab}.md`;
-
-    await createFile(app, {
-      templateFile,
-      folder,
-      file,
-    });
-  };
-
   const createPARAFile = async (values: any) => {
     if (!app || !settings) {
       return;
@@ -124,58 +77,22 @@ export const AddTemplate = () => {
     let folder = '';
     let file = '';
     let tag = '';
-    let README = '';
+    let INDEX = '';
     const path =
       settings[
-      `${paraActiveTab.toLocaleLowerCase()}sPath` as keyof PluginSettings
+        `${paraActiveTab.toLocaleLowerCase()}sPath` as keyof PluginSettings
       ]; // settings.archivesPath;
     const key = values[`${paraActiveTab}Folder`]; // values.archiveFolder;
     tag = values[`${paraActiveTab}Tag`]; // values.archiveTag;
-    README = values[`${paraActiveTab}README`]; // values.archiveREADME;
+    INDEX = values[`${paraActiveTab}Index`]; // values.archiveIndex;
 
     if (!tag) {
       return new Notice(ERROR_MESSAGES.TAGS_MUST_INPUT);
     }
 
     folder = `${path}/${key}`;
-    file = `${folder}/${README}`;
-
-    // 自定义修改，根据识别的 PARA类型更改 template
-    const PARA_type = paraActiveTab.toLocaleLowerCase()
-    if (PARA_type == "project")
-      templateFile = `${settings.periodicTemplatePath}/ProjectTemplate.md`;
-    else if (PARA_type == "area")
-      templateFile = `${settings.periodicTemplatePath}/AreaTemplate.md`;
-    else if (PARA_type == "archive")
-      templateFile = `${settings.periodicTemplatePath}/ArchiveTemplate.md`;
-    else if (PARA_type == "resource")
-      templateFile = `${settings.periodicTemplatePath}/ResourceTemplate.md`;
-    // console.log('path', PARA_type, templateFile)
-    // 另一种写法
-    // const templateMap = {
-    //   'project': 'ProjectTemplate.md',
-    //   'area': 'AreaTemplate.md',
-    //   'archive': 'ArchiveTemplate.md',
-    //   'resource': 'ResourceTemplate.md'
-    // };
-    // templateFile = `${settings.periodicTemplatePath}/${templateMap[PARA_type] || 'DefaultTemplate.md'}`;
-
-    // switch (PARA_type) {
-    //   case 'project':
-    //     templateFile = `${settings.periodicTemplatePath}/ProjectTemplate.md`;
-    //     break;
-    //   case 'area':
-    //     templateFile = `${settings.periodicTemplatePath}/AreaTemplate.md`;
-    //     break;
-    //   case 'archive':
-    //     templateFile = `${settings.periodicTemplatePath}/ArchiveTemplate.md`;
-    //     break;
-    //   case 'resource':
-    //     templateFile = `${settings.periodicTemplatePath}/ResourceTemplate.md`;
-    //     break;
-    //   default:
-    //     templateFile = `${settings.periodicTemplatePath}/DefaultTemplate.md`;
-    // }
+    file = `${folder}/${INDEX}`;
+    templateFile = `${path}/Template.md`;
 
     await createFile(app, {
       templateFile,
@@ -217,12 +134,30 @@ export const AddTemplate = () => {
 
     setTagOptions(filteredOptions);
   };
+  const handleTagInput = (item: string) => {
+    const itemTag = form.getFieldValue(`${item}Tag`).replace(/^#/, '');
+    const itemFolder = itemTag.replace(/\//g, '-');
+    const itemIndex = itemTag.split('/').reverse()[0];
+
+    form.setFieldValue(`${item}Folder`, itemFolder);
+    form.setFieldValue(
+      `${item}Index`,
+      itemIndex ? itemIndex + '.README.md' : ''
+    );
+    form.validateFields([`${item}Folder`, `${item}Index`]);
+  };
+  const computedStyle = getComputedStyle(
+    document.querySelector('.app-container')!
+  );
+  const fontSize =
+    parseInt(computedStyle?.getPropertyValue('--nav-item-size')) || 13;
 
   return (
     <ConfigProvider
-      locale={localeMap[locale]}
+      locale={locale}
       theme={{
         token: {
+          fontSize: fontSize,
           colorPrimary: reduceCSSCalc(
             getComputedStyle(document.body).getPropertyValue(
               '--interactive-accent'
@@ -232,7 +167,6 @@ export const AddTemplate = () => {
         components: {
           DatePicker: {
             cellWidth: width ? width / 7.5 : 45,
-            cellHeight: 30,
           },
         },
         algorithm: isDark ? theme.darkAlgorithm : theme.defaultAlgorithm,
@@ -260,14 +194,14 @@ export const AddTemplate = () => {
             name="type"
             value={type}
             onChange={(e) => setType(e.target.value)}
+            size="small"
             style={{
               width: '100%',
               textAlign: 'center',
-              marginBottom: 5,
             }}
           >
-            <Radio.Button value={PERIODIC}>{PERIODIC}</Radio.Button>
-            <Radio.Button value={PARA}>{PARA}</Radio.Button>
+            <Radio.Button value={PERIODIC}>{localeMap[PERIODIC]}</Radio.Button>
+            <Radio.Button value={PARA}>{localeMap[PARA]}</Radio.Button>
           </Radio.Group>
         )}
         {type === PERIODIC && settings?.usePeriodicNotes && (
@@ -291,9 +225,10 @@ export const AddTemplate = () => {
                   [YEARLY]: 'year',
                 };
                 const picker = pickerMap[periodic];
+                const label = localeMap[periodic];
 
                 return {
-                  label: periodic,
+                  label,
                   key: periodic,
                   children: (
                     <Form.Item name={periodic}>
@@ -332,17 +267,18 @@ export const AddTemplate = () => {
               size="small"
               indicator={{ size: 0 }}
               style={{ width: '100%' }}
-              items={[PROJECT, AREA, RESOURCE, ARCHIVE].map((item) => {
+              items={[PROJECT, AREA, RESOURCE, ARCHIVE].map((para) => {
+                const label = localeMap[para];
+
                 return {
-                  label: item,
-                  key: item,
+                  label,
+                  key: para,
                   children:
-                    paraActiveTab === item ? (
+                    paraActiveTab === para ? (
                       <>
                         <Form.Item
-                          labelCol={{ flex: '80px' }}
-                          label="Tag"
-                          name={`${item}Tag`}
+                          label={localeMap[TAG]}
+                          name={`${para}Tag`}
                           rules={[
                             {
                               required: true,
@@ -357,37 +293,20 @@ export const AddTemplate = () => {
                           <AutoComplete
                             options={tagsOptions}
                             onSearch={handleTagsSearch}
+                            onSelect={() => handleTagInput(para)}
                           >
                             <Input
-                              onChange={() => {
-                                const itemTag = form
-                                  .getFieldValue(`${item}Tag`)
-                                  .replace(/^#/, '');
-                                const itemFolder = itemTag.replace(/\//g, '-');
-                                const itemREADME = itemTag
-                                  .split('/')
-                                  .reverse()[0];
-
-                                form.setFieldValue(`${item}Folder`, itemFolder);
-                                form.setFieldValue(
-                                  `${item}README`,
-                                  itemREADME ? itemREADME + '.README.md' : ''
-                                );
-                                form.validateFields([
-                                  `${item}Folder`,
-                                  `${item}README`,
-                                ]);
-                              }}
+                              onChange={() => handleTagInput(para)}
                               allowClear
-                              placeholder={`${item} Tag, eg: ${item === PROJECT ? 'PKM/LifeOS' : 'PKM' // 引导用户，项目一般属于某个领域
-                                }`}
+                              placeholder={`${para} Tag, eg: ${
+                                para === PROJECT ? 'PKM/LifeOS' : 'PKM' // 引导用户，项目一般属于某个领域
+                              }`}
                             />
                           </AutoComplete>
                         </Form.Item>
                         <Form.Item
-                          labelCol={{ flex: '80px' }}
-                          label="Folder"
-                          name={`${item}Folder`}
+                          label={localeMap[FOLDER]}
+                          name={`${para}Folder`}
                           rules={[
                             {
                               required: true,
@@ -402,13 +321,12 @@ export const AddTemplate = () => {
                           />
                         </Form.Item>
                         <Form.Item
-                          labelCol={{ flex: '80px' }}
-                          label="README"
-                          name={`${item}README`}
+                          label={localeMap[INDEX]}
+                          name={`${para}Index`}
                           rules={[
                             {
                               required: true,
-                              message: 'README is required',
+                              message: 'Index is required',
                             },
                           ]}
                         >
