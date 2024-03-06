@@ -237,7 +237,8 @@ export const CreateNote = (props: { width: number }) => {
                           createPeriodicFile(
                             day,
                             periodicActiveTab,
-                            settings.periodicNotesPath,
+                            // settings.periodicNotesPath,
+                            settings,
                             app
                           );
                         }}

@@ -1,7 +1,7 @@
 import { Component, MarkdownRenderer, Notice, TFile, moment } from 'obsidian';
 import type { App } from 'obsidian';
 import dayjs, { Dayjs } from 'dayjs';
-import type { DailyRecordType, ResourceType } from './type';
+import type { DailyRecordType, ResourceType, PluginSettings } from './type';
 import { LogLevel } from './type';
 import {
   DAILY,
@@ -154,12 +154,15 @@ export function generateHeaderRegExp(header: string) {
 export async function createPeriodicFile(
   day: Dayjs,
   periodType: string,
-  periodicNotesPath: string,
+  settings: PluginSettings,
   app: App | undefined
 ): Promise<void> {
-  if (!app || !periodicNotesPath) {
+  if (!app || !settings) {
     return;
   }
+
+  const periodicNotesPath = settings.periodicNotesPath;
+  const periodicTemplatePath = settings.periodicTemplatePath;
 
   const locale = window.localStorage.getItem('language') || 'en';
   const date = dayjs(day.format()).locale(locale);
@@ -192,7 +195,8 @@ export async function createPeriodicFile(
   }
 
   file = `${folder}/${value}.md`;
-  templateFile = `${periodicNotesPath}/${periodType}.md`;
+  // templateFile = `${periodicNotesPath}/${periodType}.md`;
+  templateFile = `${periodicTemplatePath}/${periodType}.md`;
 
   await createFile(app, {
     templateFile,

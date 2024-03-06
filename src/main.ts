@@ -103,7 +103,8 @@ export default class PeriodicPARA extends Plugin {
           createPeriodicFile(
             dayjs(),
             periodType,
-            this.settings.periodicNotesPath,
+            // this.settings.periodicNotesPath,
+            this.settings,
             this.app
           );
         },
