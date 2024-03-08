@@ -7,22 +7,30 @@ import {
   MONTHLY_REG,
   QUARTERLY_REG,
   YEARLY_REG,
-  ERROR_MESSAGES,
+  ERROR_MESSAGE,
 } from '../constant';
 import { DataviewApi } from 'obsidian-dataview';
 import { logMessage, renderError } from '../util';
 import { Markdown } from '../component/Markdown';
 import dayjs from 'dayjs';
+import { I18N_MAP } from '../i18n';
 
 export class File {
   app: App;
   date: Date;
   settings: PluginSettings;
   dataview: DataviewApi;
-  constructor(app: App, settings: PluginSettings, dataview: DataviewApi) {
+  locale: string;
+  constructor(
+    app: App,
+    settings: PluginSettings,
+    dataview: DataviewApi,
+    locale: string
+  ) {
     this.app = app;
     this.settings = settings;
     this.dataview = dataview;
+    this.locale = locale;
   }
 
   private hasCommonPrefix(tags1: string[], tags2: string[]) {
@@ -69,9 +77,8 @@ export class File {
 
             if (!indexFile) {
               logMessage(
-                ERROR_MESSAGES.NO_INDEX_FILE_EXIST +
-                  `${subFolder.name}.md)` +
-                  ' in folder: ' +
+                I18N_MAP[this.locale][`${ERROR_MESSAGE}}NO_INDEX_FILE_EXIST`] +
+                  ' @ ' +
                   subFolder.path
               );
             }
@@ -107,19 +114,25 @@ export class File {
   }
 
   tags(filePath: string) {
-    let {
-      frontmatter: { tags },
-    } = this.dataview.page(filePath)?.file || { frontmatter: {} };
+    const file = this.app.vault.getAbstractFileByPath(filePath);
 
-    if (!tags) {
-      return [];
+    if (file instanceof TFile) {
+      const { frontmatter } = this.app.metadataCache.getFileCache(file) || {
+        frontmatter: {},
+      };
+
+      let tags = frontmatter?.tags;
+
+      if (!tags) {
+        return [];
+      }
+
+      if (typeof tags === 'string') {
+        tags = [tags];
+      }
+
+      return tags.map((tag: string) => tag.replace(/^#(.*)$/, '$1'));
     }
-
-    if (typeof tags === 'string') {
-      tags = [tags];
-    }
-
-    return tags;
   }
 
   listByTag = async (
@@ -136,7 +149,7 @@ export class File {
     if (!tags.length) {
       return renderError(
         this.app,
-        ERROR_MESSAGES.NO_FRONT_MATTER_TAG,
+        I18N_MAP[this.locale][`${ERROR_MESSAGE}}NO_FRONT_MATTER_TAG`],
         div,
         filepath
       );
@@ -161,7 +174,8 @@ export class File {
             !b.file.name?.match(WEEKLY_REG) &&
             !b.file.name?.match(DAILY_REG) &&
             !b.file.name?.match(/Template$/) &&
-            !b.file.path?.includes(`${periodicNotesPath}/Templates`)
+            !b.file.path?.includes(`${periodicNotesPath}/Templates`) &&
+            b.file.path !== filepath
         )
         .sort((b) => b.file.ctime, 'desc')
         .map((b) => [

@@ -9,8 +9,14 @@ import {
   MONTHLY,
   QUARTERLY,
   YEARLY,
-  ERROR_MESSAGES,
+  LIFE_OS_OFFICIAL_SITE,
+  ERROR_MESSAGE,
 } from './constant';
+import { I18N_MAP } from './i18n';
+
+export function sleep(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
 
 export function renderError(
   app: App,
@@ -26,6 +32,7 @@ export function renderError(
 export async function createFile(
   app: App,
   options: {
+    locale: string;
     templateFile: string;
     folder: string;
     file: string;
@@ -36,11 +43,13 @@ export async function createFile(
     return;
   }
 
-  const { templateFile, folder, file, tag } = options;
+  const { templateFile, folder, file, tag, locale } = options;
   const templateTFile = app.vault.getAbstractFileByPath(templateFile!);
 
   if (!templateTFile) {
-    return new Notice(ERROR_MESSAGES.NO_TEMPLATE_EXIST + templateFile);
+    return new Notice(
+      I18N_MAP[locale][`${ERROR_MESSAGE}NO_TEMPLATE_EXIST`] + templateFile
+    );
   }
 
   if (templateTFile instanceof TFile) {
@@ -62,17 +71,16 @@ export async function createFile(
 
     const fileCreated = await app.vault.create(file, templateContent);
 
-    await Promise.all([
-      app.fileManager.processFrontMatter(fileCreated, (frontMatter) => {
-        if (!tag) {
-          return;
-        }
+    await app.fileManager.processFrontMatter(fileCreated, (frontMatter) => {
+      if (!tag) {
+        return;
+      }
 
-        frontMatter.tags = frontMatter.tags || [];
-        frontMatter.tags.push(tag.replace(/^#/, ''));
-      }),
-      app.workspace.getLeaf().openFile(fileCreated),
-    ]);
+      frontMatter.tags = frontMatter.tags || [];
+      frontMatter.tags.push(tag.replace(/^#/, ''));
+    });
+    await sleep(30); // 等待被索引，否则读取不到 frontmatter：this.app.metadataCache.getFileCache(file)
+    await app.workspace.getLeaf().openFile(fileCreated);
   }
 }
 
@@ -199,8 +207,17 @@ export async function createPeriodicFile(
   templateFile = `${periodicTemplatePath}/${periodType}.md`;
 
   await createFile(app, {
+    locale,
     templateFile,
     folder,
     file,
   });
+}
+
+export function openOfficialSite(locale: string) {
+  if (locale === 'zh-cn') {
+    return (window.location.href = `${LIFE_OS_OFFICIAL_SITE}/zh`);
+  }
+
+  return (window.location.href = LIFE_OS_OFFICIAL_SITE);
 }
