@@ -100,7 +100,8 @@ export const CreateNote = (props: { width: number }) => {
 
     folder = `${path}/${key}`;
     file = `${folder}/${INDEX}`;
-    templateFile = `${path}/Template.md`;
+    // templateFile = `${path}/Template.md`;
+    templateFile = `${settings.periodicTemplatePath}/${paraActiveTab}Template.md`;
 
     await createFile(app, {
       locale: localeKey,
