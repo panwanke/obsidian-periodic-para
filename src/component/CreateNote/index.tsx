@@ -1,6 +1,6 @@
 
 import * as React from 'react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useApp } from '../../hooks/useApp';
 import { Notice } from 'obsidian';
 import {
@@ -144,6 +144,7 @@ export const CreateNote = (props: { width: number }) => {
 
     setTagOptions(filteredOptions);
   };
+  const singleClickRef = useRef<number | null>(null);
   const handleTagInput = (item: string) => {
     const itemTag = form.getFieldValue(`${item}Tag`).replace(/^#/, '');
     const itemFolder = itemTag.replace(/\//g, '-');
@@ -226,7 +227,23 @@ export const CreateNote = (props: { width: number }) => {
           <Tabs
             key={PERIODIC}
             activeKey={periodicActiveTab}
-            onChange={setPeriodicActiveTab}
+            onTabClick={(key) => {
+              if (singleClickRef.current) {
+                clearTimeout(singleClickRef.current);
+                createPeriodicFile(
+                  dayjs(new Date()),
+                  key,
+                  settings.periodicNotesPath,
+                  app
+                );
+                singleClickRef.current = null;
+              } else {
+                singleClickRef.current = window.setTimeout(() => {
+                  setPeriodicActiveTab(key);
+                  singleClickRef.current = null;
+                }, 200);
+              }
+            }}
             centered
             size="small"
             indicator={{ size: 0 }}
@@ -246,7 +263,16 @@ export const CreateNote = (props: { width: number }) => {
                 const label = localeMap[periodic];
 
                 return {
-                  label,
+                  label: (
+                    <Tooltip
+                      mouseEnterDelay={1}
+                      title={`${
+                        localeMap.QUICK_JUMP
+                      }${label.toLocaleLowerCase()}`}
+                    >
+                      {label}
+                    </Tooltip>
+                  ),
                   key: periodic,
                   children: (
                     <Form.Item name={periodic}>
