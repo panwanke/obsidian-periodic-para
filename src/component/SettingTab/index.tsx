@@ -74,6 +74,16 @@ export const SettingTab = (props: {
                         </AutoComplete>
                       </Form.Item>
                       <Form.Item
+                        name="periodicTemplatePath"
+                        label="periodic Template Folder"
+                      >
+                        <AutoComplete options={folders}>
+                          <Input
+                            placeholder={DEFAULT_SETTINGS.periodicTemplatePath}
+                          />
+                        </AutoComplete>
+                      </Form.Item>
+                      <Form.Item
                         help="Where the Habit module is in a daily note"
                         name="habitHeader"
                         label="Habit Header:"
