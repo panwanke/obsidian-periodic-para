@@ -45,6 +45,7 @@ export async function createFile(
 
   const { templateFile, folder, file, tag, locale } = options;
   const templateTFile = app.vault.getAbstractFileByPath(templateFile!);
+  const finalFile = file.match(/\.md$/) ? file : `${file}.md`;
 
   if (!templateTFile) {
     return new Notice(
@@ -55,11 +56,11 @@ export async function createFile(
   if (templateTFile instanceof TFile) {
     const templateContent = await app.vault.cachedRead(templateTFile);
 
-    if (!folder || !file) {
+    if (!folder || !finalFile) {
       return;
     }
 
-    const tFile = app.vault.getAbstractFileByPath(file);
+    const tFile = app.vault.getAbstractFileByPath(finalFile);
 
     if (tFile && tFile instanceof TFile) {
       return await app.workspace.getLeaf().openFile(tFile);
@@ -69,7 +70,7 @@ export async function createFile(
       app.vault.createFolder(folder);
     }
 
-    const fileCreated = await app.vault.create(file, templateContent);
+    const fileCreated = await app.vault.create(finalFile, templateContent);
 
     await app.fileManager.processFrontMatter(fileCreated, (frontMatter) => {
       if (!tag) {
@@ -87,6 +88,10 @@ export async function createFile(
 export function isDarkTheme() {
   const el = document.querySelector('body');
   return el?.className.split(' ').includes('theme-dark') ?? false;
+}
+
+export function isBulletList(content: string) {
+  return /^([-*\u2022]|\d+\.) .*/.test(content);
 }
 
 export function formatDailyRecord(record: DailyRecordType) {
@@ -114,10 +119,11 @@ export function formatDailyRecord(record: DailyRecordType) {
 
   const targetOtherLine = otherLine?.length //剩余行
     ? '\n' +
-    otherLine
-      .map((line: string) => (/^[ \t]/.test(line) ? line : `\t${line}`))
-      .join('\n')
-      .trimEnd()
+      otherLine
+        .filter((line: string) => line.trim())
+        .map((line: string) => `\t${isBulletList(line) ? line : `- ${line}`}`)
+        .join('\n')
+        .trimEnd()
     : '';
   const targetResourceLine = resourceList?.length // 资源文件
     ? '\n' +
@@ -213,7 +219,7 @@ export async function createPeriodicFile(
   }
 
   file = `${folder}/${value}.md`;
-  // templateFile = `${periodicNotesPath}/${periodType}.md`;
+  // templateFile = `${periodicNotesPath}/Templates/${periodType}.md`; // TODO: 传入设置值;
   templateFile = `${periodicTemplatePath}/${periodType}.md`;
 
   await createFile(app, {

@@ -1,22 +1,7 @@
-
-import * as React from 'react';
-import { useEffect, useRef, useState } from 'react';
-import { useApp } from '../../hooks/useApp';
-import { Notice } from 'obsidian';
-import {
-  Form,
-  Button,
-  DatePicker,
-  Radio,
-  Tabs,
-  Input,
-  AutoComplete,
-  ConfigProvider,
-  theme,
-  Tooltip,
-} from 'antd';
+import React, { useRef, useState } from 'react';
+import { Notice, TFile } from 'obsidian';
+import { Form, Button, DatePicker, Radio, Tabs, Input, Tooltip } from 'antd';
 import { PlusOutlined, QuestionCircleOutlined } from '@ant-design/icons';
-import reduceCSSCalc from 'reduce-css-calc';
 import dayjs from 'dayjs';
 import {
   PARA,
@@ -35,23 +20,32 @@ import {
   INDEX,
   ERROR_MESSAGE,
 } from '../../constant';
-import {
-  createFile,
-  createPeriodicFile,
-  isDarkTheme,
-  openOfficialSite,
-} from '../../util';
+import { createFile, createPeriodicFile, openOfficialSite } from '../../util';
 import type { PluginSettings } from '../../type';
 import './index.less';
 import { I18N_MAP } from '../../i18n';
+import { useApp } from '../../hooks/useApp';
+import { ConfigProvider } from '../ConfigProvider';
+import { AutoComplete } from '../AutoComplete';
+
+import weekOfYear from 'dayjs/plugin/isoWeek';
+import quarterOfYear from 'dayjs/plugin/quarterOfYear';
+import updateLocale from 'dayjs/plugin/updateLocale';
+import { useDocumentEvent } from '../../hooks/useDocumentEvent';
+
+dayjs.extend(weekOfYear);
+dayjs.extend(quarterOfYear);
+dayjs.extend(updateLocale);
 
 export const CreateNote = (props: { width: number }) => {
-  const { app, settings, locale } = useApp() || {};
+  const { app, settings: initialSettings, locale } = useApp() || {};
+  const [settings, setSettings] = useState<PluginSettings | undefined>(
+    initialSettings
+  );
   const { width } = props;
   const [periodicActiveTab, setPeriodicActiveTab] = useState(DAILY);
   const [paraActiveTab, setParaActiveTab] = useState(PROJECT);
   const defaultType = settings?.usePeriodicNotes ? PERIODIC : PARA;
-  const [isDark, setDark] = useState(isDarkTheme());
   const [type, setType] = useState(defaultType);
   const [form] = Form.useForm();
   const today = dayjs(new Date());
@@ -75,6 +69,110 @@ export const CreateNote = (props: { width: number }) => {
       ></Button>
     </Form.Item>
   );
+  const [existsDates, setExistsDates] = useState<(string | undefined)[]>(
+    app?.vault
+      .getAllLoadedFiles()
+      .filter(
+        (file) =>
+          settings?.periodicNotesPath &&
+          file.path.indexOf(settings?.periodicNotesPath) === 0 &&
+          (file as { extension?: string }).extension === 'md'
+      )
+      .map((file) => (file as { basename?: string }).basename) || []
+  );
+
+  useDocumentEvent('settingUpdate', (event) => {
+    setSettings(event.detail);
+    setType(event.detail.usePeriodicNotes ? PERIODIC : PARA);
+  });
+
+  app?.vault.on('create', (file) => {
+    if (file instanceof TFile) {
+      setExistsDates([file.basename, ...existsDates]);
+    }
+  });
+  app?.vault.on('delete', (file) => {
+    if (file instanceof TFile) {
+      setExistsDates(existsDates.filter((date) => date !== file.basename));
+    }
+  });
+  app?.vault.on('rename', (file, oldPath) => {
+    if (file instanceof TFile) {
+      setExistsDates(
+        [file.basename, ...existsDates].filter((date) => date !== oldPath)
+      );
+    }
+  });
+
+  dayjs.updateLocale(localeKey, {
+    weekStart:
+      settings?.weekStart === -1
+        ? locale?.locale === 'zh-cn'
+          ? 1
+          : 0
+        : settings?.weekStart,
+  });
+
+  const cellRender: (value: dayjs.Dayjs, picker: string) => JSX.Element = (
+    value,
+    picker
+  ) => {
+    let formattedDate: string;
+    let badgeText: string;
+    const locale = window.localStorage.getItem('language') || 'en';
+    const date = dayjs(value.format()).locale(locale);
+
+    switch (picker) {
+      case 'date':
+        formattedDate = date.format('YYYY-MM-DD');
+        badgeText = `${date.date()}`;
+        break;
+      case 'week':
+        formattedDate = date.format('YYYY-[W]WW');
+        badgeText = `${date.date()}`;
+        break;
+      case 'month':
+        formattedDate = date.format('YYYY-MM');
+        badgeText = `${date.format('MMM')}`;
+        break;
+      case 'quarter':
+        formattedDate = date.format('YYYY-[Q]Q');
+        badgeText = `Q${date.quarter()}`;
+        break;
+      case 'year':
+        formattedDate = date.format('YYYY');
+        badgeText = `${date.year()}`;
+        break;
+      default:
+        formattedDate = date.format('YYYY-MM-DD');
+        badgeText = `${date.date()}`;
+    }
+
+    if (existsDates.includes(formattedDate)) {
+      if (picker !== 'week') {
+        return (
+          <div className="ant-picker-cell-inner">
+            <div className="cell-container">
+              <span className="dot">.</span>
+              <span>{badgeText}</span>
+            </div>
+          </div>
+        );
+      }
+
+      if (date.day() === 1) {
+        return (
+          <div className="ant-picker-cell-inner">
+            <div className="cell-container">
+              <span className="week-dot">.</span>
+              <span>{badgeText}</span>
+            </div>
+          </div>
+        );
+      }
+    }
+    return <div className="ant-picker-cell-inner">{badgeText}</div>;
+  };
 
   const createPARAFile = async (values: any) => {
     if (!app || !settings) {
@@ -100,7 +198,7 @@ export const CreateNote = (props: { width: number }) => {
 
     folder = `${path}/${key}`;
     file = `${folder}/${INDEX}`;
-    // templateFile = `${path}/Template.md`;
+    // templateFile = `${path}/Template.md`; // TODO: 传入设置值;
     templateFile = `${settings.periodicTemplatePath}/${paraActiveTab}Template.md`;
 
     await createFile(app, {
@@ -110,77 +208,38 @@ export const CreateNote = (props: { width: number }) => {
       file,
       tag,
     });
+    form.resetFields();
   };
 
-  useEffect(() => {
-    const handleBodyClassChange = () => {
-      setDark(isDarkTheme());
-    };
-
-    const observer = new MutationObserver(handleBodyClassChange);
-    observer.observe(document.body, {
-      attributes: true,
-      attributeFilter: ['class'],
-    });
-
-    return () => {
-      observer.disconnect();
-    };
-  }, []);
-
-  // tags autocomplete
+  // all tags
   const tags = Object.entries(
     (app?.metadataCache as any).getTags() as Record<string, number>
   )
     .sort((a, b) => b[1] - a[1])
     .map(([tag, _]) => {
-      return { value: tag };
+      return { value: tag, label: tag };
     });
-  const [tagsOptions, setTagOptions] = useState<{ value: string }[]>(tags);
-  const handleTagsSearch = (value: string) => {
-    const filteredOptions = tags.filter((tag) =>
-      tag.value.toLowerCase().includes(value.toLowerCase())
-    );
 
-    setTagOptions(filteredOptions);
-  };
   const singleClickRef = useRef<number | null>(null);
   const handleTagInput = (item: string) => {
     const itemTag = form.getFieldValue(`${item}Tag`).replace(/^#/, '');
     const itemFolder = itemTag.replace(/\//g, '-');
-    const itemIndex = itemTag.split('/').reverse()[0];
+    const itemIndex =
+      settings?.paraIndexFilename === 'readme'
+        ? `${itemTag.split('/').reverse()[0]}.README`
+        : `${itemFolder}`;
 
     form.setFieldValue(`${item}Folder`, itemFolder);
-    form.setFieldValue(
-      `${item}Index`,
-      itemIndex ? itemIndex + '.README.md' : ''
-    );
+    form.setFieldValue(`${item}Index`, itemIndex ? `${itemIndex}.md` : '');
     form.validateFields([`${item}Folder`, `${item}Index`]);
   };
-  const computedStyle = getComputedStyle(
-    document.querySelector('.app-container')!
-  );
-  const fontSize =
-    parseInt(computedStyle?.getPropertyValue('--nav-item-size')) || 13;
 
   return (
     <ConfigProvider
-      locale={locale}
-      theme={{
-        token: {
-          fontSize: fontSize,
-          colorPrimary: reduceCSSCalc(
-            getComputedStyle(document.body).getPropertyValue(
-              '--interactive-accent'
-            )
-          ),
+      components={{
+        DatePicker: {
+          cellWidth: width ? width / 7.5 : 45,
         },
-        components: {
-          DatePicker: {
-            cellWidth: width ? width / 7.5 : 45,
-          },
-        },
-        algorithm: isDark ? theme.darkAlgorithm : theme.defaultAlgorithm,
       }}
     >
       <Tooltip title={localeMap.HELP}>
@@ -277,6 +336,9 @@ export const CreateNote = (props: { width: number }) => {
                   children: (
                     <Form.Item name={periodic}>
                       <DatePicker
+                        cellRender={(value: dayjs.Dayjs, info: any) => {
+                          return cellRender(value, picker);
+                        }}
                         onSelect={(day) => {
                           createPeriodicFile(
                             day,
@@ -337,8 +399,7 @@ export const CreateNote = (props: { width: number }) => {
                           ]}
                         >
                           <AutoComplete
-                            options={tagsOptions}
-                            onSearch={handleTagsSearch}
+                            options={tags}
                             onSelect={() => handleTagInput(para)}
                           >
                             <Input
