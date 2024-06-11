@@ -48,7 +48,7 @@ const localeMap: Record<string, any> = {
 };
 const locale = window.localStorage.getItem('language') || 'en';
 
-export default class PeriodicPARA extends Plugin {
+export default class LifeOS extends Plugin {
   settings: PluginSettings;
   project: Project;
   area: Area;
@@ -114,7 +114,6 @@ export default class PeriodicPARA extends Plugin {
           createPeriodicFile(
             dayjs(),
             periodType,
-            // this.settings.periodicNotesPath,
             this.settings,
             this.app
           );

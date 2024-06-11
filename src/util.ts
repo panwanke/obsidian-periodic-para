@@ -1,8 +1,12 @@
 import { Component, MarkdownRenderer, Notice, TFile, moment } from 'obsidian';
 import type { App } from 'obsidian';
 import dayjs, { Dayjs } from 'dayjs';
-import type { DailyRecordType, ResourceType, PluginSettings } from './type';
-import { LogLevel } from './type';
+import type {
+  DailyRecordType,
+  PeriodicNotesTemplateFilePath,
+  ResourceType,
+} from './type';
+import { LogLevel, PluginSettings } from './type';
 import {
   DAILY,
   WEEKLY,
@@ -181,12 +185,9 @@ export async function createPeriodicFile(
   settings: PluginSettings,
   app: App | undefined
 ): Promise<void> {
-  if (!app || !settings) {
+  if (!app || !settings.periodicNotesPath) {
     return;
   }
-
-  const periodicNotesPath = settings.periodicNotesPath;
-  const periodicTemplatePath = settings.periodicTemplatePath;
 
   const locale = window.localStorage.getItem('language') || 'en';
   const date = dayjs(day.format()).locale(locale);
@@ -201,27 +202,42 @@ export async function createPeriodicFile(
   const monthNumber = String(date.month() + 1).padStart(2, '0');
 
   if (periodType === DAILY) {
-    folder = `${periodicNotesPath
-      }/${year}/${monthNumber}`;
+    // folder = `${settings.periodicNotesPath}/${year}/${periodType}/${String(
+    //   date.month() + 1
+    // ).padStart(2, '0')}`;
+    folder = `${settings.periodicNotesPath}/${year}/${monthNumber}`;
     value = date.format('YYYY-MM-DD');
   } else if (periodType === WEEKLY) {
-    folder = `${periodicNotesPath}/${year}/${monthNumber}`;
+    // folder = `${settings.periodicNotesPath}/${date.format(
+    //   'gggg'
+    // )}/${periodType}`;
+    folder = `${settings.periodicNotesPath}/${year}/${monthNumber}`;
     value = date.format('gggg-[W]ww');
   } else if (periodType === MONTHLY) {
-    folder = `${periodicNotesPath}/${year}`;
+    // folder = `${settings.periodicNotesPath}/${year}/${periodType}`;
+
     value = date.format('YYYY-MM');
   } else if (periodType === QUARTERLY) {
-    folder = `${periodicNotesPath}/${year}`;
+    // folder = `${settings.periodicNotesPath}/${year}/${periodType}`;
+    folder = `${settings.periodicNotesPath}/${year}`;
     value = date.format('YYYY-[Q]Q');
   } else if (periodType === YEARLY) {
-    folder = `${periodicNotesPath}`;
+    // folder = `${settings.periodicNotesPath}/${year}`;
+    folder = `${settings.periodicNotesPath}`;
     value = year;
   }
 
   file = `${folder}/${value}.md`;
-  // templateFile = `${periodicNotesPath}/Templates/${periodType}.md`; // TODO: 传入设置值;
-  templateFile = `${periodicTemplatePath}/${periodType}.md`;
-
+  // templateFile = settings.usePeriodicAdvanced
+  //   ? settings[
+  //       `periodicNotesTemplateFilePath${periodType}` as PeriodicNotesTemplateFilePath
+  //     ] || `${settings.periodicNotesPath}/Templates/${periodType}.md`
+  //   : `${settings.periodicNotesPath}/Templates/${periodType}.md`;
+  templateFile = settings.usePeriodicAdvanced
+    ? settings[
+        `periodicNotesTemplateFilePath${periodType}` as PeriodicNotesTemplateFilePath
+      ] || `${settings.periodicTemplatePath}/${periodType}.md`
+    : `${settings.periodicTemplatePath}/${periodType}.md`;
   await createFile(app, {
     locale,
     templateFile,

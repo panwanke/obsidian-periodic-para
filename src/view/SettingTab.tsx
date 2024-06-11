@@ -1,7 +1,7 @@
 import React from 'react';
 import { PluginSettingTab } from 'obsidian';
 import type { App } from 'obsidian';
-import type PeriodicPARA from '../main';
+import type LifeOS from '../main';
 import type { PluginSettings } from '../type';
 import { type Root, createRoot } from 'react-dom/client';
 import { AppContext } from '../context';
@@ -10,10 +10,20 @@ import { Locale } from 'antd/es/locale';
 
 export const DEFAULT_SETTINGS: PluginSettings = {
   periodicNotesPath: 'PeriodicNotes',
+  usePeriodicAdvanced: false,
+  periodicNotesTemplateFilePathYearly: '',
+  periodicNotesTemplateFilePathQuarterly: '',
+  periodicNotesTemplateFilePathMonthly: '',
+  periodicNotesTemplateFilePathWeekly: '',
+  periodicNotesTemplateFilePathDaily: '',
   projectsPath: '1. Projects',
+  projectsTemplateFilePath: '',
   areasPath: '2. Areas',
+  areasTemplateFilePath: '',
   resourcesPath: '3. Resources',
+  resourcesTemplateFilePath: '',
   archivesPath: '4. Archives',
+  archivesTemplateFilePath: '',
   projectListHeader: 'Project List',
   areaListHeader: 'First Things Dimension',
   periodicTemplatePath: "PeriodicNotes/Templates",
@@ -28,10 +38,11 @@ export const DEFAULT_SETTINGS: PluginSettings = {
   usePARAAdvanced: false,
   paraIndexFilename: 'readme',
   weekStart: -1,
+  useChineseCalendar: false,
 };
 
 export class SettingTabView extends PluginSettingTab {
-  plugin: PeriodicPARA;
+  plugin: LifeOS;
   root: Root;
   settings: PluginSettings;
   locale: Locale;
@@ -39,7 +50,7 @@ export class SettingTabView extends PluginSettingTab {
   constructor(
     app: App,
     settings: PluginSettings,
-    plugin: PeriodicPARA,
+    plugin: LifeOS,
     locale: Locale
   ) {
     super(app, plugin);
