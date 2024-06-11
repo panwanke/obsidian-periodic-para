@@ -233,11 +233,7 @@ export async function createPeriodicFile(
   //       `periodicNotesTemplateFilePath${periodType}` as PeriodicNotesTemplateFilePath
   //     ] || `${settings.periodicNotesPath}/Templates/${periodType}.md`
   //   : `${settings.periodicNotesPath}/Templates/${periodType}.md`;
-  templateFile = settings.usePeriodicAdvanced
-    ? settings[
-        `periodicNotesTemplateFilePath${periodType}` as PeriodicNotesTemplateFilePath
-      ] || `${settings.periodicTemplatePath}/${periodType}.md`
-    : `${settings.periodicTemplatePath}/${periodType}.md`;
+  templateFile = `${settings.periodicTemplatePath}/${periodType}.md`;
   await createFile(app, {
     locale,
     templateFile,
