@@ -123,17 +123,17 @@ export function formatDailyRecord(record: DailyRecordType) {
 
   const targetOtherLine = otherLine?.length //剩余行
     ? '\n' +
-      otherLine
-        .filter((line: string) => line.trim())
-        .map((line: string) => `\t${isBulletList(line) ? line : `- ${line}`}`)
-        .join('\n')
-        .trimEnd()
+    otherLine
+      .filter((line: string) => line.trim())
+      .map((line: string) => `\t${isBulletList(line) ? line : `- ${line}`}`)
+      .join('\n')
+      .trimEnd()
     : '';
   const targetResourceLine = resourceList?.length // 资源文件
     ? '\n' +
-      resourceList
-        ?.map((resource: ResourceType) => `\t- ${generateFileLink(resource)}`)
-        .join('\n')
+    resourceList
+      ?.map((resource: ResourceType) => `\t- ${generateFileLink(resource)}`)
+      .join('\n')
     : '';
   const finalTargetContent =
     targetFirstLine + targetOtherLine + targetResourceLine;
@@ -148,9 +148,8 @@ export function generateFileLink(resource: ResourceType): string {
 
   const prefix = resource.type?.includes('image') ? '!' : ''; // only add ! for image type
 
-  return `${prefix}[${resource.name || resource.filename}](${
-    resource.externalLink
-  })`;
+  return `${prefix}[${resource.name || resource.filename}](${resource.externalLink
+    })`;
 }
 
 export function generateFileName(resource: ResourceType): string {
@@ -198,22 +197,29 @@ export async function createPeriodicFile(
 
   const year = date.format('YYYY');
   let value;
+  let month_number = String(date.month() + 1).padStart(2, '0')
 
   if (periodType === DAILY) {
-    folder = `${settings.periodicNotesPath}/${year}/${periodType}/${String(
-      date.month() + 1
-    ).padStart(2, '0')}`;
+    // folder = `${settings.periodicNotesPath}/${year}/${periodType}/${String(
+    //   date.month() + 1
+    // ).padStart(2, '0')}`;
+    folder = `${settings.periodicNotesPath}/${year}/${month_number}`;
     value = date.format('YYYY-MM-DD');
   } else if (periodType === WEEKLY) {
+    // folder = `${settings.periodicNotesPath}/${date.format(
+    //   'gggg'
+    // )}/${periodType}`;
     folder = `${settings.periodicNotesPath}/${date.format(
       'gggg'
-    )}/${periodType}`;
+    )}/${month_number}`;
     value = date.format('gggg-[W]ww');
   } else if (periodType === MONTHLY) {
-    folder = `${settings.periodicNotesPath}/${year}/${periodType}`;
+    // folder = `${settings.periodicNotesPath}/${year}/${periodType}`;
+    folder = `${settings.periodicNotesPath}/${year}`;
     value = date.format('YYYY-MM');
   } else if (periodType === QUARTERLY) {
-    folder = `${settings.periodicNotesPath}/${year}/${periodType}`;
+    // folder = `${settings.periodicNotesPath}/${year}/${periodType}`;
+    folder = `${settings.periodicNotesPath}/${year}`;
     value = date.format('YYYY-[Q]Q');
   } else if (periodType === YEARLY) {
     folder = `${settings.periodicNotesPath}/${year}`;
@@ -223,8 +229,8 @@ export async function createPeriodicFile(
   file = `${folder}/${value}.md`;
   templateFile = settings.usePeriodicAdvanced
     ? settings[
-        `periodicNotesTemplateFilePath${periodType}` as PeriodicNotesTemplateFilePath
-      ] || `${settings.periodicNotesPath}/Templates/${periodType}.md`
+    `periodicNotesTemplateFilePath${periodType}` as PeriodicNotesTemplateFilePath
+    ] || `${settings.periodicNotesPath}/Templates/${periodType}.md`
     : `${settings.periodicNotesPath}/Templates/${periodType}.md`;
   await createFile(app, {
     locale,
